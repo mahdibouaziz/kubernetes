@@ -79,6 +79,7 @@ import (
 	"k8s.io/kubectl/pkg/util/term"
 
 	"k8s.io/cli-runtime/pkg/genericclioptions"
+	"k8s.io/kubectl/pkg/cmd/helloworld"
 	"k8s.io/kubectl/pkg/cmd/kustomize"
 )
 
@@ -392,6 +393,7 @@ func NewKubectlCommand(o KubectlOptions) *cobra.Command {
 				expose.NewCmdExposeService(f, o.IOStreams),
 				run.NewCmdRun(f, o.IOStreams),
 				set.NewCmdSet(f, o.IOStreams),
+				helloworld.NewCmdHelloWorld(f, o.IOStreams),
 			},
 		},
 		{
