@@ -30,7 +30,7 @@ func NewHelloWorldOptions(ioStreams genericiooptions.IOStreams) *HelloWorldOptio
 }
 
 func NewCmdHelloWorld(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *cobra.Command {
-	// o := NewHelloWorldOptions(ioStreams)
+	o := NewHelloWorldOptions(ioStreams)
 
 	cmd := &cobra.Command{
 		Use:     "hello-world",
@@ -38,12 +38,14 @@ func NewCmdHelloWorld(f cmdutil.Factory, ioStreams genericiooptions.IOStreams) *
 		Long:    i18n.T("Print hello world."),
 		Example: helloworlExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			fmt.Println("Hello World")
-			// cmdutil.CheckErr(o.Complete(restClientGetter, cmd, args))
-			// cmdutil.CheckErr(o.Validate())
-			// cmdutil.CheckErr(o.RunHelloWorld())
+			cmdutil.CheckErr(o.RunHelloWorld())
 		},
 	}
 
 	return cmd
+}
+
+func (o HelloWorldOptions) RunHelloWorld() error {
+	fmt.Fprintln(o.Out, "Hello World")
+	return nil
 }
