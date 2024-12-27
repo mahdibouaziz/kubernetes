@@ -56,6 +56,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/explain"
 	"k8s.io/kubectl/pkg/cmd/expose"
 	"k8s.io/kubectl/pkg/cmd/get"
+	"k8s.io/kubectl/pkg/cmd/hellokubernetes"
 	"k8s.io/kubectl/pkg/cmd/label"
 	"k8s.io/kubectl/pkg/cmd/logs"
 	"k8s.io/kubectl/pkg/cmd/options"
@@ -392,6 +393,7 @@ func NewKubectlCommand(o KubectlOptions) *cobra.Command {
 				expose.NewCmdExposeService(f, o.IOStreams),
 				run.NewCmdRun(f, o.IOStreams),
 				set.NewCmdSet(f, o.IOStreams),
+				hellokubernetes.NewCmdHelloKubernetes(f, o.IOStreams),
 			},
 		},
 		{
