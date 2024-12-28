@@ -4,9 +4,12 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
+	"k8s.io/cli-runtime/pkg/printers"
 	"k8s.io/cli-runtime/pkg/resource"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+	"k8s.io/kubectl/pkg/scheme"
 	"k8s.io/kubectl/pkg/util/i18n"
 	"k8s.io/kubectl/pkg/util/templates"
 )
@@ -32,15 +35,24 @@ var (
 type HelloKubernetesOptions struct {
 	// Filename options
 	resource.FilenameOptions
-	genericiooptions.IOStreams
+	// arguments
+	args []string
 
-	// TODO - add print flags
-	// PrintFlags *genericclioptions.PrintFlags
+	// Configure the builder
+	builder *resource.Builder
+
+	// configure the printer
+	PrintFlags *genericclioptions.PrintFlags
+	ToPrinter  func(string) (printers.ResourcePrinter, error)
+
+	// generic IOStreams
+	genericiooptions.IOStreams
 }
 
 func NewHelloKubernetesOptions(ioStreams genericiooptions.IOStreams) *HelloKubernetesOptions {
 	return &HelloKubernetesOptions{
-		IOStreams: ioStreams,
+		IOStreams:  ioStreams,
+		PrintFlags: genericclioptions.NewPrintFlags("greeted").WithTypeSetter(scheme.Scheme),
 	}
 }
 
@@ -53,35 +65,90 @@ func NewCmdHelloKubernetes(f cmdutil.Factory, ioStreams genericiooptions.IOStrea
 		Long:    helloKubernetesLong,
 		Example: hellokubernetesExample,
 		Run: func(cmd *cobra.Command, args []string) {
-			// cmdutil.CheckErr(o.Complete(f, cmd, args))
-			cmdutil.CheckErr(o.Validate(args))
-			// cmdutil.CheckErr(o.RunHelloKubernetes())
+			cmdutil.CheckErr(o.Complete(f, cmd, args))
+			cmdutil.CheckErr(o.Validate())
+			cmdutil.CheckErr(o.RunHelloKubernetes())
 		},
 	}
 
-	usage := "identifying the resource to retrieve and print its information"
-	cmdutil.AddFilenameOptionFlags(cmd, &o.FilenameOptions, usage)
+	// Add the required flags
+	o.AddFlags(cmd, ioStreams)
 
 	return cmd
 }
 
-// Complete adapts from the command line args and factory to the data required.
-// TODO - Add --output flag later and use this funciton to bind the --output
-func (o HelloKubernetesOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
-	return nil
+// AddFlags Adds the required Flags for the command
+func (o *HelloKubernetesOptions) AddFlags(cmd *cobra.Command, ioStreams genericclioptions.IOStreams) {
+	// printer flags
+	o.PrintFlags.AddFlags(cmd)
+
+	// Filename flags
+	usage := "identifying the resource to retrieve and print its information"
+	cmdutil.AddFilenameOptionFlags(cmd, &o.FilenameOptions, usage)
 }
 
-func (o HelloKubernetesOptions) Validate(args []string) error {
-	// Ensure either filename is passed or resource type/name
-	if len(args) > 0 && !cmdutil.IsFilenameSliceEmpty(o.FilenameOptions.Filenames, o.FilenameOptions.Kustomize) {
-		return fmt.Errorf("cannot provide both arguments (type/name) and file input")
-	} else if len(args) == 0 && cmdutil.IsFilenameSliceEmpty(o.FilenameOptions.Filenames, o.FilenameOptions.Kustomize) {
-		return fmt.Errorf("must provide either arguments (type/name) and file input")
+// Complete adapts from the command line args and factory to the data required.
+func (o *HelloKubernetesOptions) Complete(f cmdutil.Factory, cmd *cobra.Command, args []string) error {
+	o.args = args
+	o.builder = f.NewBuilder()
+
+	// Configure the printer
+	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
+		o.PrintFlags.NamePrintFlags.Operation = operation
+		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, cmdutil.DryRunClient)
+		return o.PrintFlags.ToPrinter()
 	}
 	return nil
 }
 
-func (o HelloKubernetesOptions) RunHelloKubernetes() error {
-	fmt.Fprintln(o.Out, "Hello World")
+// Validate checks to the HelloKubernetesOptions to see if there is sufficient information run the command.
+func (o *HelloKubernetesOptions) Validate() error {
+	// Ensure either filename is passed or resource type/name
+	if len(o.args) > 0 && !cmdutil.IsFilenameSliceEmpty(o.FilenameOptions.Filenames, o.FilenameOptions.Kustomize) {
+		return fmt.Errorf("cannot provide both arguments (type/name) and file input")
+	} else if len(o.args) == 0 && cmdutil.IsFilenameSliceEmpty(o.FilenameOptions.Filenames, o.FilenameOptions.Kustomize) {
+		return fmt.Errorf("must provide either arguments (type/name) or file input")
+	}
+	return nil
+}
+
+// RunHelloKubernetes Does the work
+func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
+
+	if !cmdutil.IsFilenameSliceEmpty(o.FilenameOptions.Filenames, o.FilenameOptions.Kustomize) {
+		// handle filename was passed
+		r := o.builder.
+			Unstructured().
+			ContinueOnError().
+			DefaultNamespace().
+			FilenameParam(false, &o.FilenameOptions).
+			Flatten().
+			Do()
+		err := r.Err()
+		if err != nil {
+			return err
+		}
+
+		err = r.Visit(func(info *resource.Info, err error) error {
+			if err != nil {
+				return err
+			}
+			resultMsg := fmt.Sprintf("Hello %s %s \n", info.Mapping.GroupVersionKind.Kind, info.Name)
+			printer, err := o.ToPrinter(resultMsg)
+			if err != nil {
+				return err
+			}
+			return printer.PrintObj(info.Object, o.Out)
+
+		})
+		if err != nil {
+			return err
+		}
+
+	} else {
+		// handle resource type/name was passed
+
+	}
+
 	return nil
 }
