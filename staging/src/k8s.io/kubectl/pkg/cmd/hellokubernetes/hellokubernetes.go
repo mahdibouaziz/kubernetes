@@ -78,7 +78,7 @@ func NewCmdHelloKubernetes(f cmdutil.Factory, ioStreams genericiooptions.IOStrea
 }
 
 // AddFlags Adds the required Flags for the command
-func (o *HelloKubernetesOptions) AddFlags(cmd *cobra.Command, ioStreams genericclioptions.IOStreams) {
+func (o *HelloKubernetesOptions) AddFlags(cmd *cobra.Command, ioStreams genericiooptions.IOStreams) {
 	// printer flags
 	o.PrintFlags.AddFlags(cmd)
 
