@@ -39,6 +39,14 @@ type HelloKubernetesOptions struct {
 	// arguments
 	args []string
 
+	// TODO - add these options later
+	// all bool // to operate on all the resources (with the respect of the namespace option)
+
+	// namespace options
+	namespace        string
+	enforceNamespace bool
+	allNamespaces    bool
+
 	// Configure the builder
 	builder *resource.Builder
 
@@ -86,6 +94,8 @@ func (o *HelloKubernetesOptions) AddFlags(cmd *cobra.Command, ioStreams generici
 	// Filename flags
 	usage := "identifying the resource to retrieve and print its information"
 	cmdutil.AddFilenameOptionFlags(cmd, &o.FilenameOptions, usage)
+	cmd.Flags().BoolVarP(&o.allNamespaces, "all-namespaces", "A", o.allNamespaces, "If true, check the specified action in all namespaces.")
+
 }
 
 // Complete adapts from the command line args and factory to the data required.
@@ -99,6 +109,14 @@ func (o *HelloKubernetesOptions) Complete(f cmdutil.Factory, cmd *cobra.Command,
 		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, cmdutil.DryRunNone)
 		return o.PrintFlags.ToPrinter()
 	}
+
+	// Configure the namespace
+	var err error
+	o.namespace, o.enforceNamespace, err = f.ToRawKubeConfigLoader().Namespace()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -121,6 +139,8 @@ func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
 		r := o.builder.
 			Unstructured().
 			ContinueOnError().
+			AllNamespaces(o.allNamespaces).
+			NamespaceParam(o.namespace).
 			DefaultNamespace().
 			FilenameParam(false, &o.FilenameOptions).
 			Flatten().
@@ -151,8 +171,8 @@ func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
 		b := o.builder.
 			Unstructured().
 			ContinueOnError().
-			NamespaceParam("default").
-			// NamespaceParam(o.namespace).
+			AllNamespaces(o.allNamespaces).
+			NamespaceParam(o.namespace).
 			DefaultNamespace().
 			Flatten().
 			ResourceTypeOrNameArgs(false, o.args...).
