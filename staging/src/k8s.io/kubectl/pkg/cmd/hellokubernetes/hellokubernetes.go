@@ -105,9 +105,9 @@ func (o *HelloKubernetesOptions) Complete(f cmdutil.Factory, cmd *cobra.Command,
 func (o *HelloKubernetesOptions) Validate() error {
 	// Ensure either filename is passed or resource type/name
 	if len(o.args) > 0 && !cmdutil.IsFilenameSliceEmpty(o.FilenameOptions.Filenames, o.FilenameOptions.Kustomize) {
-		return fmt.Errorf("cannot provide both arguments (type/name) and file input")
+		return fmt.Errorf("cannot provide both arguments (type/name) and file input (--filename or -f)")
 	} else if len(o.args) == 0 && cmdutil.IsFilenameSliceEmpty(o.FilenameOptions.Filenames, o.FilenameOptions.Kustomize) {
-		return fmt.Errorf("must provide either arguments (type/name) or file input")
+		return fmt.Errorf("must provide either arguments (type/name) or file input (--filename or -f)")
 	}
 	return nil
 }
