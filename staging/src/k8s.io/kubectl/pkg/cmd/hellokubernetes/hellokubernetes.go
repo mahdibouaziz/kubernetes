@@ -39,9 +39,6 @@ type HelloKubernetesOptions struct {
 	// arguments
 	args []string
 
-	// TODO - add these options later
-	// all bool // to operate on all the resources (with the respect of the namespace option)
-
 	// namespace options
 	namespace        string
 	enforceNamespace bool
@@ -139,9 +136,8 @@ func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
 		r := o.builder.
 			Unstructured().
 			ContinueOnError().
+			NamespaceParam(o.namespace).DefaultNamespace().
 			AllNamespaces(o.allNamespaces).
-			NamespaceParam(o.namespace).
-			DefaultNamespace().
 			FilenameParam(false, &o.FilenameOptions).
 			Flatten().
 			Do()
@@ -168,12 +164,12 @@ func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
 
 	} else {
 		// handle resource type/name was passed
+		fmt.Println(o.allNamespaces)
 		b := o.builder.
 			Unstructured().
 			ContinueOnError().
+			NamespaceParam(o.namespace).DefaultNamespace().
 			AllNamespaces(o.allNamespaces).
-			NamespaceParam(o.namespace).
-			DefaultNamespace().
 			Flatten().
 			ResourceTypeOrNameArgs(false, o.args...).
 			Latest()
