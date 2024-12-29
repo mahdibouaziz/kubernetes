@@ -131,14 +131,16 @@ func (o *HelloKubernetesOptions) Validate() error {
 // RunHelloKubernetes Does the work
 func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
 
+	// Create the builder
+	b := o.builder.
+		Unstructured().
+		ContinueOnError().
+		NamespaceParam(o.namespace).DefaultNamespace().
+		AllNamespaces(o.allNamespaces)
+
 	if !cmdutil.IsFilenameSliceEmpty(o.FilenameOptions.Filenames, o.FilenameOptions.Kustomize) {
 		// handle filename was passed
-		r := o.builder.
-			Unstructured().
-			ContinueOnError().
-			NamespaceParam(o.namespace).DefaultNamespace().
-			AllNamespaces(o.allNamespaces).
-			FilenameParam(false, &o.FilenameOptions).
+		r := b.FilenameParam(false, &o.FilenameOptions).
 			Flatten().
 			Do()
 		err := r.Err()
@@ -164,17 +166,14 @@ func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
 
 	} else {
 		// handle resource type/name was passed
-		fmt.Println(o.allNamespaces)
-		b := o.builder.
-			Unstructured().
-			ContinueOnError().
-			NamespaceParam(o.namespace).DefaultNamespace().
-			AllNamespaces(o.allNamespaces).
-			Flatten().
+		r := b.Flatten().
 			ResourceTypeOrNameArgs(false, o.args...).
-			Latest()
-
-		r := b.Do()
+			Latest().
+			Do()
+		err := r.Err()
+		if err != nil {
+			return err
+		}
 
 		return r.Visit(func(info *resource.Info, err error) error {
 			if err != nil {
