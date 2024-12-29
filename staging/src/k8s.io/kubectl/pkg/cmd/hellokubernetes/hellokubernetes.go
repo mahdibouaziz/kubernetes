@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -95,7 +96,7 @@ func (o *HelloKubernetesOptions) Complete(f cmdutil.Factory, cmd *cobra.Command,
 	// Configure the printer
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {
 		o.PrintFlags.NamePrintFlags.Operation = operation
-		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, cmdutil.DryRunClient)
+		cmdutil.PrintFlagsWithDryRunStrategy(o.PrintFlags, cmdutil.DryRunNone)
 		return o.PrintFlags.ToPrinter()
 	}
 	return nil
@@ -147,7 +148,36 @@ func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
 
 	} else {
 		// handle resource type/name was passed
+		b := o.builder.
+			Unstructured().
+			ContinueOnError().
+			NamespaceParam("default").
+			// NamespaceParam(o.namespace).
+			DefaultNamespace().
+			Flatten().
+			ResourceTypeOrNameArgs(false, o.args...).
+			Latest()
 
+		r := b.Do()
+
+		return r.Visit(func(info *resource.Info, err error) error {
+			if err != nil {
+				return err
+			}
+
+			// Get metadata for the object
+			metaObj, err := meta.Accessor(info.Object)
+			if err != nil {
+				return fmt.Errorf("unable to access metadata: %v", err)
+			}
+
+			resultMsg := fmt.Sprintf("Hello %s %s %s\n", info.Mapping.GroupVersionKind.Kind, info.Name, metaObj.GetCreationTimestamp().Time)
+			printer, err := o.ToPrinter(resultMsg)
+			if err != nil {
+				return err
+			}
+			return printer.PrintObj(info.Object, o.Out)
+		})
 	}
 
 	return nil
