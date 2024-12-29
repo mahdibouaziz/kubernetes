@@ -4,7 +4,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
-	"k8s.io/apimachinery/pkg/api/meta"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/cli-runtime/pkg/genericclioptions"
 	"k8s.io/cli-runtime/pkg/genericiooptions"
 	"k8s.io/cli-runtime/pkg/printers"
@@ -165,13 +165,29 @@ func (o *HelloKubernetesOptions) RunHelloKubernetes() error {
 				return err
 			}
 
-			// Get metadata for the object
-			metaObj, err := meta.Accessor(info.Object)
+			// Play with the object
+			unstructuredObj, ok := info.Object.(*unstructured.Unstructured)
+			if !ok {
+				return fmt.Errorf("object is not unstructured")
+			}
+			resultMsg := fmt.Sprintf("Hello %s %s %s", info.Mapping.GroupVersionKind.Kind, info.Name, unstructuredObj.GetCreationTimestamp().Time)
+
+			// check if unstructuredObj has spec.container field and if yes add it to the message
+			containers, found, err := unstructured.NestedSlice(unstructuredObj.Object, "spec", "containers")
 			if err != nil {
-				return fmt.Errorf("unable to access metadata: %v", err)
+				return fmt.Errorf("error accessing spec.containers: %v", err)
 			}
 
-			resultMsg := fmt.Sprintf("Hello %s %s %s\n", info.Mapping.GroupVersionKind.Kind, info.Name, metaObj.GetCreationTimestamp().Time)
+			// If we found containers, print the images
+			if found && len(containers) > 0 {
+				for _, container := range containers {
+					containerMap, ok := container.(map[string]interface{})
+					if ok {
+						resultMsg += fmt.Sprintf(" %s", containerMap["image"])
+					}
+				}
+			}
+
 			printer, err := o.ToPrinter(resultMsg)
 			if err != nil {
 				return err
